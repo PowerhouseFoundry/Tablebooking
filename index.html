@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Peri-Peri Grill — Table Booking</title>
+  <link rel="stylesheet" href="css/styles.css?v13" />
+  <link rel="icon" href="assets/logo.png" type="image/png" />
+</head>
+<body>
+  <div class="bg"></div>
+  <header class="site-header">
+        <img src="assets/logo.png" alt="Restaurant Logo" class="logo" />
+    <h1 class="brand">The Foundry Nandos</h1>
+    <nav class="top-nav">
+      <button type="button" id="showGuest" class="btn primary" aria-pressed="true">Guest Booking</button>
+      <button type="button" id="showAdmin" class="btn ghost" aria-pressed="false">Admin / Maitre D’</button>
+    </nav>
+  </header>
+
+  <main id="guestView" class="view active">
+    <section class="card form-card">
+      <h2>Book a Table</h2>
+      <p class="muted">Simple, fast booking. Parties of 1–4 people.</p>
+      <form id="bookingForm" novalidate>
+        <div class="grid">
+          <label class="field">
+            <span>Name on booking</span>
+            <input id="name" name="name" required maxlength="60" placeholder="e.g., Jordan Smith" />
+          </label>
+
+          <label class="field">
+            <span>Date</span>
+            <div class="date-row">
+              <label class="chip"><input type="radio" name="dateMode" id="dateToday" value="today" checked> Today</label>
+              <label class="chip"><input type="radio" name="dateMode" id="datePick" value="pick"> Pick a date</label>
+              <input type="date" id="dateInput" aria-label="Pick booking date" disabled>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>How many people?</span>
+            <select id="size" name="size" required>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+
+          <label class="field full">
+            <span>Any special requests (allergies etc.)</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="e.g., nut allergy, wheelchair access"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Time for booking</span>
+            <select id="time" name="time" required></select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Reserve Table</button>
+        </div>
+        <div id="formStatus" class="status" role="status" aria-live="polite"></div>
+      </form>
+      <details class="tip">
+        <summary>How we assign tables</summary>
+        <p>We automatically allocate the first free table (1–4) for your selected time. If all tables are full for that time, you’ll see a polite “Fully booked” message.</p>
+      </details>
+    </section>
+  </main>
+
+  <main id="adminView" class="view">
+    <section class="card admin-card">
+      <div class="admin-header">
+        <h2>Table Plan</h2>
+        <div class="admin-controls">
+          <label class="field compact">
+            <span>Date</span>
+            <input type="date" id="adminDate" aria-label="Admin date select">
+          </label>
+          <label class="field compact">
+            <span>Time</span>
+            <select id="adminTimeSelect" name="adminTimeSelect" aria-label="Admin time select"></select>
+          </label>
+          <div class="timebar" id="timebar" aria-label="Time options (quick)"></div>
+        </div>
+      </div>
+
+      <div class="admin-body">
+        <div class="floorplan">
+          <div class="table" data-table="1"><span>Table 1</span><div class="badge" id="t1"></div></div>
+          <div class="table" data-table="2"><span>Table 2</span><div class="badge" id="t2"></div></div>
+          <div class="table" data-table="3"><span>Table 3</span><div class="badge" id="t3"></div></div>
+          <div class="table" data-table="4"><span>Table 4</span><div class="badge" id="t4"></div></div>
+        </div>
+
+        <div class="bookings">
+          <h3>Bookings for <span id="currentSlot"></span></h3>
+          <ul id="bookingList" class="list"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  
+
+  <script src="js/app.js?v13"></script>
+</body>
+</html>
