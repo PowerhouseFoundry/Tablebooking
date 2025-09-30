@@ -1,16 +1,22 @@
+import {
+  addBooking,
+  getBookingsForDate,
+  subscribeBookingsForDate,
+  removeBooking
+} from './firebase.js';
 
-/* Booking system (clean v13)
+/* Firebase-backed booking system
    - 4 tables (1–4)
-   - 15-minute slots from 12:00 to 21:00 (1h seating -> last out 22:00)
+   - 15-minute slots from 12:00 to 21:00 (1h seating)
    - Each booking lasts 60 minutes
-   - Data stored in localStorage
+   - Data lives in Firestore (multi-device)
 */
 
 // ====== Time helpers ======
 const TIMES = (() => {
   const out = [];
   const start = 12 * 60;  // 12:00
-  const end = 21 * 60;    // 21:00 last seating
+  const end = 21 * 60;    // 21:00 last seating (leaves at 22:00)
   for (let m = start; m <= end; m += 15) {
     const hh = String(Math.floor(m / 60)).padStart(2, '0');
     const mm = String(m % 60).padStart(2, '0');
@@ -20,7 +26,11 @@ const TIMES = (() => {
 })();
 
 const TABLES = [1,2,3,4];
-const lsKey = "ppg_bookings_v1";
+
+// Live cache for the currently viewed admin date
+let currentAdminDate = null;
+let currentBookings = [];   // latest snapshot from Firestore for currentAdminDate
+let unsubscribe = null;
 
 function todayISO(){
   const d = new Date();
@@ -35,16 +45,9 @@ function overlapsOneHour(t1, t2){
   const b1 = timeToMin(t2), b2 = b1 + 60;
   return a1 < b2 && b1 < a2;
 }
-
-// ====== Storage ======
-function readBookings(){
-  try{ return JSON.parse(localStorage.getItem(lsKey)) || []; }
-  catch(e){ return []; }
+function escapeHtml(s){
+  return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
-function writeBookings(list){
-  localStorage.setItem(lsKey, JSON.stringify(list));
-}
-function uid(){ return Math.random().toString(36).slice(2,9); }
 
 // ====== Guest form ======
 function populateTimeSelect(){
@@ -88,7 +91,11 @@ function setupAdminDate(){
   const adminDate = document.getElementById('adminDate');
   if(!adminDate) return;
   if(!adminDate.value) adminDate.value = todayISO();
+  // start live subscription for this date
+  startDateSubscription(adminDate.value);
   adminDate.addEventListener('change', () => {
+    const d = adminDate.value || todayISO();
+    startDateSubscription(d);
     const active = document.querySelector('.time-pill.active');
     const slot = active ? active.dataset.slot : TIMES[0];
     selectTime(slot);
@@ -98,18 +105,28 @@ function getAdminDate(){
   const adminDate = document.getElementById('adminDate');
   return (adminDate && adminDate.value) ? adminDate.value : todayISO();
 }
+function startDateSubscription(date){
+  currentAdminDate = date;
+  if (unsubscribe) { try { unsubscribe(); } catch{}; unsubscribe = null; }
+  unsubscribe = subscribeBookingsForDate(date, (docs) => {
+    currentBookings = docs;
+    // re-render current slot if visible
+    const active = document.querySelector('.time-pill.active');
+    if (active) selectTime(active.dataset.slot);
+  });
+}
 
-// ====== Booking logic ======
+// ====== Booking logic (uses cache for the selected date) ======
 function findFreeTableAt(date, time){
-  const bookings = readBookings().filter(b => b.date === date && overlapsOneHour(b.time, time));
-  const used = new Set(bookings.map(b => b.table));
+  const overlapping = currentBookings.filter(b => b.date === date && overlapsOneHour(b.time, time));
+  const used = new Set(overlapping.map(b => b.table));
   for (const t of TABLES) {
     if (!used.has(t)) return t;
   }
   return null;
 }
 
-function handleBookingSubmit(e){
+async function handleBookingSubmit(e){
   e.preventDefault();
   const name = document.getElementById('name').value.trim();
   const size = parseInt(document.getElementById('size').value,10);
@@ -124,26 +141,36 @@ function handleBookingSubmit(e){
     return;
   }
 
+  // Ensure we have the latest bookings for that date (one-off fetch if guest is booking a date
+  // different from the current admin subscription date).
+  if (currentAdminDate !== date) {
+    currentAdminDate = date;
+    currentBookings = await getBookingsForDate(date);
+  }
+
   const free = findFreeTableAt(date, time);
   if(!free){
     if(statusEl){ statusEl.textContent = "❌ Sorry — all 4 tables are fully booked for this time."; statusEl.classList.add('show','error'); }
     return;
   }
 
-  const bookings = readBookings();
-  bookings.push({ id: uid(), name, size, notes, date, time, table: free, createdAt: Date.now() });
-  writeBookings(bookings);
-
-  if(statusEl){
-    statusEl.textContent = `✅ Thank you ${name}, your table ${free} is booked for ${size} at ${time} on ${date}.`;
-    statusEl.classList.add('show','ok');
+  try{
+    await addBooking({ name, size, notes, date, time, table: free, createdAt: Date.now() });
+    if(statusEl){
+      statusEl.textContent = `✅ Thank you ${escapeHtml(name)}, your table ${free} is booked for ${size} at ${time} on ${date}.`;
+      statusEl.classList.add('show','ok');
+    }
+    setTimeout(() => {
+      const form = document.getElementById('bookingForm');
+      if(form) form.reset();
+      populateTimeSelect();
+    }, 1500);
+  }catch(err){
+    if(statusEl){
+      statusEl.textContent = `❌ ${escapeHtml(err.message || 'Could not book')}`;
+      statusEl.classList.add('show','error');
+    }
   }
-
-  setTimeout(() => {
-    const form = document.getElementById('bookingForm');
-    if(form) form.reset();
-    populateTimeSelect();
-  }, 1500);
 }
 
 // ====== Admin rendering ======
@@ -174,8 +201,11 @@ function selectTime(slot){
     if(badge) badge.textContent = '';
   });
 
-  // filter bookings for date & slot
-  const bookings = readBookings().filter(b => b.date === getAdminDate() && b.time === slot).sort((a,b) => a.table - b.table);
+  // filter bookings for current admin date & slot (from live cache)
+  const d = getAdminDate();
+  const bookings = currentBookings
+    .filter(b => b.date === d && b.time === slot)
+    .sort((a,b) => a.table - b.table);
 
   // annotate tables
   for(const bk of bookings){
@@ -200,20 +230,17 @@ function selectTime(slot){
       </li>
     `).join('');
 
-    ul.onclick = (e) => {
+    ul.onclick = async (e) => {
       const btn = e.target.closest('button[data-cancel]');
       if(!btn) return;
-      const id = btn.dataset.cancel;
-      const all = readBookings();
-      const next = all.filter(b => b.id !== id);
-      writeBookings(next);
-      selectTime(slot);
+      try{
+        await removeBooking(btn.dataset.cancel);
+        // onSnapshot will refresh the UI automatically
+      }catch(err){
+        alert('Could not cancel: ' + (err?.message || 'unknown error'));
+      }
     };
   }
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
 // ====== Nav + init ======
@@ -245,8 +272,9 @@ function init(){
   setupDateControls();
   setupAdminDate();
   renderTimebar();
-  const defaultSlot = TIMES[0];
-  selectTime(defaultSlot);
+
+  // Start on first slot and subscribe to today's date by default
+  selectTime(TIMES[0]);
 
   const form = document.getElementById('bookingForm');
   if(form) form.addEventListener('submit', handleBookingSubmit);

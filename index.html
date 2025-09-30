@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Peri-Peri Grill — Table Booking</title>
-  <link rel="stylesheet" href="css/styles.css?v13" />
+  <title>The Foundry Nandos — Table Booking</title>
+  <link rel="stylesheet" href="css/styles.css" />
   <link rel="icon" href="assets/logo.png" type="image/png" />
 </head>
 <body>
   <div class="bg"></div>
+
   <header class="site-header">
-        <img src="assets/logo.png" alt="Restaurant Logo" class="logo" />
+    <img src="assets/logo.png" alt="The Foundry Nandos Logo" class="logo" />
     <h1 class="brand">The Foundry Nandos</h1>
     <nav class="top-nav">
       <button type="button" id="showGuest" class="btn primary" aria-pressed="true">Guest Booking</button>
@@ -18,10 +19,12 @@
     </nav>
   </header>
 
+  <!-- Guest View -->
   <main id="guestView" class="view active">
     <section class="card form-card">
       <h2>Book a Table</h2>
-      <p class="muted">Simple, fast booking. Parties of 1–4 people.</p>
+      <p class="muted">Parties of 1–4 people. Bookings last 1 hour.</p>
+
       <form id="bookingForm" novalidate>
         <div class="grid">
           <label class="field">
@@ -39,23 +42,21 @@
           </label>
 
           <label class="field">
-            <span>How many people?</span>
+            <span>How many people</span>
             <select id="size" name="size" required>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
+              <option value="1">1</option><option value="2">2</option>
+              <option value="3">3</option><option value="4">4</option>
             </select>
-          </label>
-
-          <label class="field full">
-            <span>Any special requests (allergies etc.)</span>
-            <textarea id="notes" name="notes" rows="3" placeholder="e.g., nut allergy, wheelchair access"></textarea>
           </label>
 
           <label class="field">
             <span>Time for booking</span>
             <select id="time" name="time" required></select>
+          </label>
+
+          <label class="field full">
+            <span>Any special requests (allergies etc.)</span>
+            <textarea id="notes" name="notes" rows="3" placeholder="e.g., nut allergy, wheelchair access"></textarea>
           </label>
         </div>
 
@@ -64,17 +65,14 @@
         </div>
         <div id="formStatus" class="status" role="status" aria-live="polite"></div>
       </form>
-      <details class="tip">
-        <summary>How we assign tables</summary>
-        <p>We automatically allocate the first free table (1–4) for your selected time. If all tables are full for that time, you’ll see a polite “Fully booked” message.</p>
-      </details>
     </section>
   </main>
 
+  <!-- Admin View -->
   <main id="adminView" class="view">
     <section class="card admin-card">
       <div class="admin-header">
-        <h2>Table Plan</h2>
+        <h2>Maitre D’ — Table Plan</h2>
         <div class="admin-controls">
           <label class="field compact">
             <span>Date</span>
@@ -84,7 +82,7 @@
             <span>Time</span>
             <select id="adminTimeSelect" name="adminTimeSelect" aria-label="Admin time select"></select>
           </label>
-          <div class="timebar" id="timebar" aria-label="Time options (quick)"></div>
+          <div class="timebar" id="timebar" aria-label="Quick time options"></div>
         </div>
       </div>
 
@@ -104,11 +102,8 @@
     </section>
   </main>
 
-  
-
-  <script src="js/app.js?v13"></script>
+  <!-- Load Firebase helpers first, then app.js (ES modules) -->
   <script type="module" src="js/firebase.js"></script>
-<script type="module" src="js/app.js"></script>
-
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
